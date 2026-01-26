@@ -1,211 +1,208 @@
-import React, { forwardRef, ButtonHTMLAttributes, ReactNode } from 'react';
-import { semanticColors, scaleColors } from '../../tokens/colors';
-import { button } from '../../tokens/spacing';
+import { ButtonHTMLAttributes, ReactNode } from 'react'
+import { Icon, IconName, IconColor } from './Icon'
 
-/**
- * Button Component
- * DDS (Daekyo Design System)
- * 
- * @figma https://www.figma.com/design/1SskE79en5eBiobCKgPOoj/-DDS--Daekyo-Design-System
- */
+/* ===========================================
+   DDS BUTTON COMPONENT
+   Figma 스펙 1:1 매핑
+   - variant: filled | outlined | ghost
+   - color: brand | neutral
+   - size: large | medium | small | xsmall
+   - state: default | hovered | pressed | disabled
 
-// =============================================================================
-// Types
-// =============================================================================
+   예외 컬러(negative 등)는 className으로 오버라이드:
+   <Button className="bg-negative text-invert">삭제</Button>
+   =========================================== */
 
-export type ButtonSize = 'large' | 'medium' | 'small' | 'xsmall';
-export type ButtonVariant = 'filled' | 'outlined' | 'ghost';
-export type ButtonColor = 'accent' | 'brand' | 'neutral' | 'positive' | 'negative' | 'caution';
+type ButtonVariant = 'filled' | 'outlined' | 'ghost'
+type ButtonSize = 'large' | 'medium' | 'small' | 'xsmall'
+type ButtonColor = 'brand' | 'neutral'
 
-export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'color'> {
-  /** 버튼 크기 */
-  size?: ButtonSize;
-  /** 버튼 스타일 변형 */
-  variant?: ButtonVariant;
-  /** 버튼 색상 */
-  color?: ButtonColor;
-  /** 전체 너비 사용 */
-  fullWidth?: boolean;
-  /** 아이콘만 있는 버튼 */
-  iconOnly?: boolean;
-  /** 왼쪽 아이콘 */
-  leftIcon?: ReactNode;
-  /** 오른쪽 아이콘 */
-  rightIcon?: ReactNode;
-  /** 로딩 상태 */
-  loading?: boolean;
-  /** 버튼 내용 */
-  children?: ReactNode;
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  children: ReactNode
+  variant?: ButtonVariant
+  size?: ButtonSize
+  color?: ButtonColor
+  fullWidth?: boolean
+  /** 왼쪽 아이콘 (IconName) */
+  leftIcon?: IconName
+  /** 오른쪽 아이콘 (IconName) */
+  rightIcon?: IconName
 }
 
-// =============================================================================
-// Styles
-// =============================================================================
+/* 아이콘 크기 매핑 (Figma 스펙) */
+const iconSizeMap: Record<ButtonSize, 'spacing-6' | 'spacing-5' | 'spacing-4'> = {
+  large: 'spacing-6',    // 24px
+  medium: 'spacing-6',   // 24px
+  small: 'spacing-5',    // 20px
+  xsmall: 'spacing-4',   // 16px
+}
 
-const getSizeStyles = (size: ButtonSize, variant: ButtonVariant, iconOnly: boolean) => {
-  if (iconOnly) {
-    const iconPadding = variant === 'ghost' ? button.iconGhost : button.icon;
-    return {
-      padding: iconPadding[size === 'xsmall' ? 'small' : size]?.padding || '12px',
-    };
-  }
+/* DDS Button Size Styles (CSS 변수 사용) */
+const sizeStyles: Record<ButtonSize, string> = {
+  large: `
+    px-[var(--button-large-padding-hor)]
+    py-[var(--button-large-padding-ver)]
+    gap-[var(--button-large-gap)]
+    typo-label-large
+  `,
+  medium: `
+    px-[var(--button-medium-padding-hor)]
+    py-[var(--button-medium-padding-ver)]
+    gap-[var(--button-medium-gap)]
+    typo-label-medium
+  `,
+  small: `
+    px-[var(--button-small-padding-hor)]
+    py-[var(--button-small-padding-ver)]
+    gap-[var(--button-small-gap)]
+    typo-label-small
+  `,
+  xsmall: `
+    px-[var(--button-xsmall-padding-hor)]
+    py-[var(--button-xsmall-padding-ver)]
+    gap-[var(--button-xsmall-gap)]
+    typo-label-small
+  `,
+}
 
-  if (variant === 'ghost') {
-    const ghostSize = button.ghost[size];
-    return {
-      padding: `${ghostSize.paddingVertical} ${ghostSize.paddingHorizontal}`,
-      gap: button[size].gap,
-    };
-  }
+/* Ghost Button Size Styles */
+const ghostSizeStyles: Record<ButtonSize, string> = {
+  large: `
+    px-[var(--button-ghost-large-padding-hor)]
+    py-[var(--button-ghost-large-padding-ver)]
+    gap-[var(--button-large-gap)]
+    typo-label-large
+  `,
+  medium: `
+    px-[var(--button-ghost-medium-padding-hor)]
+    py-[var(--button-ghost-medium-padding-ver)]
+    gap-[var(--button-medium-gap)]
+    typo-label-medium
+  `,
+  small: `
+    px-[var(--button-ghost-small-padding-hor)]
+    py-[var(--button-ghost-small-padding-ver)]
+    gap-[var(--button-small-gap)]
+    typo-label-small
+  `,
+  xsmall: `
+    px-[var(--button-ghost-xsmall-padding-hor)]
+    py-[var(--button-ghost-xsmall-padding-ver)]
+    gap-[var(--button-xsmall-gap)]
+    typo-label-small
+  `,
+}
 
-  const sizeConfig = button[size];
-  return {
-    padding: `${sizeConfig.paddingVertical} ${sizeConfig.paddingHorizontal}`,
-    gap: sizeConfig.gap,
-  };
-};
+/* 텍스트 색상 매핑 */
+const textColorMap: Record<ButtonColor, { filled: string; other: string }> = {
+  brand: { filled: 'text-invert', other: 'text-brand' },
+  neutral: { filled: 'text-primary', other: 'text-primary' },
+}
 
-const getColorStyles = (color: ButtonColor, variant: ButtonVariant, disabled: boolean) => {
-  if (disabled) {
-    return {
-      backgroundColor: variant === 'filled' ? semanticColors.background.disabled : 'transparent',
-      color: semanticColors.text.disabled,
-      borderColor: variant === 'outlined' ? semanticColors.border.disabled : 'transparent',
-    };
-  }
+const getTextColor = (variant: ButtonVariant, color: ButtonColor, disabled?: boolean): string => {
+  if (disabled) return 'text-disabled'
+  return variant === 'filled' ? textColorMap[color].filled : textColorMap[color].other
+}
 
-  const colorMap: Record<ButtonColor, {
-    filled: { bg: string; text: string };
-    outlined: { border: string; text: string };
-    ghost: { text: string };
-  }> = {
-    accent: {
-      filled: { bg: semanticColors.background.accent, text: scaleColors.neutral.white },
-      outlined: { border: semanticColors.border.accent, text: semanticColors.text.accent },
-      ghost: { text: semanticColors.text.accent },
-    },
-    brand: {
-      filled: { bg: semanticColors.background.brand, text: scaleColors.neutral.white },
-      outlined: { border: semanticColors.border.brand, text: semanticColors.text.brand },
-      ghost: { text: semanticColors.text.brand },
-    },
-    neutral: {
-      filled: { bg: scaleColors.neutral.darkest, text: scaleColors.neutral.white },
-      outlined: { border: semanticColors.border.default, text: semanticColors.text.primary },
-      ghost: { text: semanticColors.text.primary },
-    },
-    positive: {
-      filled: { bg: semanticColors.background.positive, text: scaleColors.neutral.white },
-      outlined: { border: semanticColors.border.positive, text: semanticColors.text.positive },
-      ghost: { text: semanticColors.text.positive },
-    },
-    negative: {
-      filled: { bg: semanticColors.background.negative, text: scaleColors.neutral.white },
-      outlined: { border: semanticColors.border.negative, text: semanticColors.text.negative },
-      ghost: { text: semanticColors.text.negative },
-    },
-    caution: {
-      filled: { bg: semanticColors.background.caution, text: scaleColors.neutral.darkest },
-      outlined: { border: semanticColors.border.caution, text: semanticColors.text.caution },
-      ghost: { text: semanticColors.text.caution },
-    },
-  };
+/* 배경색 매핑 */
+const bgColorMap: Record<ButtonColor, string> = {
+  brand: 'bg-brand',
+  neutral: 'bg-invert',
+}
 
-  const colorConfig = colorMap[color][variant];
+const getBackgroundColor = (variant: ButtonVariant, color: ButtonColor, disabled?: boolean): string => {
+  if (disabled) return variant === 'filled' ? 'bg-disabled' : 'bg-transparent'
+  if (variant === 'filled') return bgColorMap[color]
+  return 'bg-transparent'
+}
 
-  if (variant === 'filled') {
-    return {
-      backgroundColor: colorConfig.bg,
-      color: colorConfig.text,
-      borderColor: 'transparent',
-    };
-  }
+/* 보더 색상 매핑 */
+const borderColorMap: Record<ButtonColor, string> = {
+  brand: 'border border-brand',
+  neutral: 'border border-default',
+}
 
-  if (variant === 'outlined') {
-    return {
-      backgroundColor: 'transparent',
-      color: colorConfig.text,
-      borderColor: colorConfig.border,
-    };
-  }
+const getBorderStyle = (variant: ButtonVariant, color: ButtonColor, disabled?: boolean): string => {
+  if (variant !== 'outlined') return ''
+  if (disabled) return 'border border-disabled'
+  return borderColorMap[color]
+}
 
-  // ghost
-  return {
-    backgroundColor: 'transparent',
-    color: colorConfig.text,
-    borderColor: 'transparent',
-  };
-};
+/* 아이콘 색상 매핑 */
+const iconColorMap: Record<ButtonColor, { filled: IconColor; other: IconColor }> = {
+  brand: { filled: 'invert', other: 'brand' },
+  neutral: { filled: 'primary', other: 'primary' },
+}
 
-// =============================================================================
-// Component
-// =============================================================================
+const getIconColor = (variant: ButtonVariant, color: ButtonColor, disabled?: boolean): IconColor => {
+  if (disabled) return 'disabled'
+  return variant === 'filled' ? iconColorMap[color].filled : iconColorMap[color].other
+}
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  (
-    {
-      size = 'medium',
-      variant = 'filled',
-      color = 'accent',
-      fullWidth = false,
-      iconOnly = false,
-      leftIcon,
-      rightIcon,
-      loading = false,
-      disabled = false,
-      children,
-      style,
-      ...props
-    },
-    ref
-  ) => {
-    const isDisabled = disabled || loading;
-    const sizeStyles = getSizeStyles(size, variant, iconOnly);
-    const colorStyles = getColorStyles(color, variant, isDisabled);
+function Button({
+  children,
+  variant = 'filled',
+  size = 'medium',
+  color = 'brand',
+  fullWidth = false,
+  leftIcon,
+  rightIcon,
+  disabled,
+  className = '',
+  ...props
+}: ButtonProps) {
+  const baseStyles = `
+    inline-flex items-center justify-center
+    max-w-[var(--button-max-width)]
+    cursor-pointer
+    disabled:cursor-not-allowed
+    relative overflow-hidden
+  `
 
-    const buttonStyles: React.CSSProperties = {
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: sizeStyles.gap,
-      padding: sizeStyles.padding,
-      borderRadius: variant === 'ghost' ? button.ghostRadius : button.radius,
-      border: variant === 'outlined' ? `1px solid ${colorStyles.borderColor}` : 'none',
-      backgroundColor: colorStyles.backgroundColor,
-      color: colorStyles.color,
-      cursor: isDisabled ? 'not-allowed' : 'pointer',
-      width: fullWidth ? '100%' : 'auto',
-      maxWidth: button.maxWidth,
-      fontFamily: '"Pretendard Variable", sans-serif',
-      fontWeight: 500,
-      fontSize: size === 'large' ? '18px' : size === 'medium' ? '16px' : '14px',
-      lineHeight: 1.44,
-      transition: 'all 0.2s ease',
-      opacity: isDisabled ? 0.6 : 1,
-      ...style,
-    };
+  // Radius: 기본 999px (circle), Ghost는 8px
+  const radiusStyle = variant === 'ghost'
+    ? 'rounded-[var(--button-ghost-radius)]'
+    : 'rounded-[var(--button-radius)]'
 
-    return (
-      <button
-        ref={ref}
-        disabled={isDisabled}
-        style={buttonStyles}
-        {...props}
-      >
-        {loading ? (
-          <span>Loading...</span>
-        ) : (
-          <>
-            {leftIcon && <span style={{ display: 'flex' }}>{leftIcon}</span>}
-            {!iconOnly && children}
-            {rightIcon && <span style={{ display: 'flex' }}>{rightIcon}</span>}
-          </>
+  // Size styles: Ghost는 별도 padding
+  const currentSizeStyles = variant === 'ghost'
+    ? ghostSizeStyles[size]
+    : sizeStyles[size]
+
+  // Figma 스펙에 맞는 색상 스타일
+  const textColor = getTextColor(variant, color, disabled)
+  const bgColor = getBackgroundColor(variant, color, disabled)
+  const borderStyle = getBorderStyle(variant, color, disabled)
+
+  const widthStyles = fullWidth ? 'w-full' : ''
+  const iconColor = getIconColor(variant, color, disabled)
+  const iconSize = iconSizeMap[size]
+
+  return (
+    <button
+      className={`group ${baseStyles} ${radiusStyle} ${currentSizeStyles} ${bgColor} ${textColor} ${borderStyle} ${widthStyles} ${className}`.replace(/\s+/g, ' ').trim()}
+      disabled={disabled}
+      {...props}
+    >
+      {/* Interaction background layer (Figma 스펙) */}
+      {!disabled && (
+        <span
+          className="absolute inset-0 bg-[var(--alpha-black-0)] group-hover:bg-[var(--alpha-black-12)] group-active:bg-[var(--alpha-black-24)] transition-colors"
+          aria-hidden="true"
+        />
+      )}
+      {/* Content layer */}
+      <span className="relative inline-flex items-center justify-center gap-inherit">
+        {leftIcon && (
+          <Icon name={leftIcon} size={iconSize} color={iconColor} />
         )}
-      </button>
-    );
-  }
-);
+        {children}
+        {rightIcon && (
+          <Icon name={rightIcon} size={iconSize} color={iconColor} />
+        )}
+      </span>
+    </button>
+  )
+}
 
-Button.displayName = 'Button';
-
-export default Button;
+export default Button
