@@ -30,11 +30,19 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 /* 아이콘 크기 매핑 (Figma 스펙) */
-const iconSizeMap: Record<ButtonSize, 'spacing-6' | 'spacing-5' | 'spacing-4'> = {
-  large: 'spacing-6',    // 24px
-  medium: 'spacing-6',   // 24px
-  small: 'spacing-5',    // 20px
-  xsmall: 'spacing-4',   // 16px
+const iconSizeMap: Record<ButtonSize, 'small' | 'xsmall' | 'xxsmall'> = {
+  large: 'small',     // 24px (icon-size-small)
+  medium: 'small',    // 24px (icon-size-small)
+  small: 'xsmall',    // 20px (icon-size-xsmall)
+  xsmall: 'xxsmall',  // 16px (icon-size-xxsmall)
+}
+
+/* Content gap 매핑 (Figma 스펙) */
+const gapStyles: Record<ButtonSize, string> = {
+  large: 'gap-[var(--button-large-gap)]',
+  medium: 'gap-[var(--button-medium-gap)]',
+  small: 'gap-[var(--button-small-gap)]',
+  xsmall: 'gap-[var(--button-xsmall-gap)]',
 }
 
 /* DDS Button Size Styles (CSS 변수 사용) */
@@ -42,25 +50,21 @@ const sizeStyles: Record<ButtonSize, string> = {
   large: `
     px-[var(--button-large-padding-hor)]
     py-[var(--button-large-padding-ver)]
-    gap-[var(--button-large-gap)]
     typo-label-large
   `,
   medium: `
     px-[var(--button-medium-padding-hor)]
     py-[var(--button-medium-padding-ver)]
-    gap-[var(--button-medium-gap)]
     typo-label-medium
   `,
   small: `
     px-[var(--button-small-padding-hor)]
     py-[var(--button-small-padding-ver)]
-    gap-[var(--button-small-gap)]
     typo-label-small
   `,
   xsmall: `
     px-[var(--button-xsmall-padding-hor)]
     py-[var(--button-xsmall-padding-ver)]
-    gap-[var(--button-xsmall-gap)]
     typo-label-small
   `,
 }
@@ -70,30 +74,26 @@ const ghostSizeStyles: Record<ButtonSize, string> = {
   large: `
     px-[var(--button-ghost-large-padding-hor)]
     py-[var(--button-ghost-large-padding-ver)]
-    gap-[var(--button-large-gap)]
     typo-label-large
   `,
   medium: `
     px-[var(--button-ghost-medium-padding-hor)]
     py-[var(--button-ghost-medium-padding-ver)]
-    gap-[var(--button-medium-gap)]
     typo-label-medium
   `,
   small: `
     px-[var(--button-ghost-small-padding-hor)]
     py-[var(--button-ghost-small-padding-ver)]
-    gap-[var(--button-small-gap)]
     typo-label-small
   `,
   xsmall: `
     px-[var(--button-ghost-xsmall-padding-hor)]
     py-[var(--button-ghost-xsmall-padding-ver)]
-    gap-[var(--button-xsmall-gap)]
     typo-label-small
   `,
 }
 
-/* 텍스트 색상 매핑 */
+/* 텍스트 색상 매핑 (Figma color prop 기준) */
 const textColorMap: Record<ButtonColor, { filled: string; other: string }> = {
   brand: { filled: 'text-invert', other: 'text-brand' },
   neutral: { filled: 'text-primary', other: 'text-primary' },
@@ -107,12 +107,13 @@ const getTextColor = (variant: ButtonVariant, color: ButtonColor, disabled?: boo
 /* 배경색 매핑 */
 const bgColorMap: Record<ButtonColor, string> = {
   brand: 'bg-brand',
-  neutral: 'bg-invert',
+  neutral: 'bg-neutral',
 }
 
 const getBackgroundColor = (variant: ButtonVariant, color: ButtonColor, disabled?: boolean): string => {
-  if (disabled) return variant === 'filled' ? 'bg-disabled' : 'bg-transparent'
+  if (disabled) return variant === 'filled' ? 'bg-disabled' : (variant === 'outlined' ? 'bg-default' : 'bg-transparent')
   if (variant === 'filled') return bgColorMap[color]
+  if (variant === 'outlined') return 'bg-default'
   return 'bg-transparent'
 }
 
@@ -139,6 +140,20 @@ const getIconColor = (variant: ButtonVariant, color: ButtonColor, disabled?: boo
   return variant === 'filled' ? iconColorMap[color].filled : iconColorMap[color].other
 }
 
+/* 인터랙션 레이어 알파 색상 (Figma 스펙)
+   - filled (모든 컬러): alpha-black
+   - outlined/ghost + brand: alpha-brand (시맨틱 토큰)
+   - outlined/ghost + neutral: alpha-black
+*/
+const getInteractionClass = (variant: ButtonVariant, color: ButtonColor): string => {
+  const useBrandAlpha = variant !== 'filled' && color === 'brand'
+
+  if (useBrandAlpha) {
+    return 'bg-transparent group-hover:bg-[var(--alpha-lightblue-12)] group-active:bg-[var(--alpha-lightblue-24)]'
+  }
+  return 'bg-[var(--alpha-black-0)] group-hover:bg-[var(--alpha-black-12)] group-active:bg-[var(--alpha-black-24)]'
+}
+
 function Button({
   children,
   variant = 'filled',
@@ -159,7 +174,7 @@ function Button({
     relative overflow-hidden
   `
 
-  // Radius: 기본 999px (circle), Ghost는 8px
+  // Radius: 기본 999px (pill), Ghost는 8px
   const radiusStyle = variant === 'ghost'
     ? 'rounded-[var(--button-ghost-radius)]'
     : 'rounded-[var(--button-radius)]'
@@ -187,12 +202,12 @@ function Button({
       {/* Interaction background layer (Figma 스펙) */}
       {!disabled && (
         <span
-          className="absolute inset-0 bg-[var(--alpha-black-0)] group-hover:bg-[var(--alpha-black-12)] group-active:bg-[var(--alpha-black-24)] transition-colors"
+          className={`absolute inset-0 ${getInteractionClass(variant, color)} transition-colors`}
           aria-hidden="true"
         />
       )}
       {/* Content layer */}
-      <span className="relative inline-flex items-center justify-center gap-inherit">
+      <span className={`relative inline-flex items-center justify-center ${gapStyles[size]}`}>
         {leftIcon && (
           <Icon name={leftIcon} size={iconSize} color={iconColor} />
         )}
